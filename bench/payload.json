@@ -1,0 +1,5 @@
+{
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "prompt": "Summarize the benefits of network-aware inference scheduling.",
+  "max_tokens": 16
+}

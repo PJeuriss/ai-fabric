@@ -1,0 +1,35 @@
+# kind cluster: 1 control-plane + real workers that actually run pods
+# (EPP, mock-vLLM, controllers, Prometheus). The large simulated GPU fleet is
+# added separately as KWOK nodes, which do NOT run containers.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ai-fabric
+networking:
+  # give the API server room; we create many Node/Pod objects via KWOK
+  apiServerAddress: "0.0.0.0"
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            # raise limits so a large KWOK fleet doesn't get throttled
+            max-requests-inflight: "800"
+            max-mutating-requests-inflight: "400"
+        controllerManager:
+          extraArgs:
+            # our own node lifecycle is handled by KWOK; keep the real NLC quiet
+            node-monitor-period: "60s"
+            node-monitor-grace-period: "300s"
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ai-fabric.io/role=control-plane"
+  - role: worker
+    labels:
+      ai-fabric.io/real: "true"
+  - role: worker
+    labels:
+      ai-fabric.io/real: "true"

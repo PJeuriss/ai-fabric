@@ -1,0 +1,27 @@
+# Fabric-aware EndpointPickerConfig (Phase E): adds the custom network scorer.
+# The prefix/kv/queue scorers still balance load and cache locality; the fabric
+# scorer (high weight) biases toward network-close, low-congestion endpoints.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: epp-config
+  namespace: llm-d
+data:
+  epp.yaml: |
+    apiVersion: inference.networking.x-k8s.io/v1alpha1
+    kind: EndpointPickerConfig
+    plugins:
+      - type: queue-scorer
+      - type: kv-cache-utilization-scorer
+      - type: fabric-congestion-scorer      # <-- our plugin (registered in the custom EPP image)
+      - type: max-score-picker
+    schedulingProfiles:
+      - name: default
+        plugins:
+          - pluginRef: queue-scorer
+            weight: 1.0
+          - pluginRef: kv-cache-utilization-scorer
+            weight: 1.0
+          - pluginRef: fabric-congestion-scorer
+            weight: 3.0
+          - pluginRef: max-score-picker

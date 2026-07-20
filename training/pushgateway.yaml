@@ -1,0 +1,49 @@
+# Prometheus Pushgateway — sink for the synthetic fabric load the driver derives
+# from training-pod placement. Prometheus scrapes it with honor_labels so the
+# pushed {source="clab-fabric-leafN"} labels survive and the Fabric State Service
+# sees placement-driven "congestion".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pushgateway
+  namespace: monitoring
+  labels: { app: pushgateway }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: pushgateway } }
+  template:
+    metadata:
+      labels: { app: pushgateway }
+    spec:
+      nodeSelector: { ai-fabric.io/real: "true" }
+      containers:
+        - name: pushgateway
+          image: prom/pushgateway:v1.10.0
+          ports: [{ name: metrics, containerPort: 9091 }]
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pushgateway
+  namespace: monitoring
+  labels: { app: pushgateway }
+spec:
+  selector: { app: pushgateway }
+  ports: [{ name: metrics, port: 9091, targetPort: 9091 }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pushgateway
+  namespace: monitoring
+  labels: { release: kps }
+spec:
+  namespaceSelector: { matchNames: ["monitoring"] }
+  selector: { matchLabels: { app: pushgateway } }
+  endpoints:
+    - port: metrics
+      honorLabels: true
+      interval: 10s

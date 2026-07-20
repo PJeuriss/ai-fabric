@@ -1,0 +1,44 @@
+# Reference template for a single simulated GPU node (KWOK + fake-gpu-operator).
+# The generator (scripts/13-gen-kwok-nodes.sh) stamps out many of these with
+# fabric-location labels so the scheduler/controller can reason about topology.
+#
+# Placeholders: __NAME__ __LEAF__ __RACK__ __RAIL__ __SPINE__
+apiVersion: v1
+kind: Node
+metadata:
+  name: __NAME__
+  annotations:
+    kwok.x-k8s.io/node: fake
+  labels:
+    type: kwok
+    kubernetes.io/hostname: __NAME__
+    kubernetes.io/os: linux
+    node-role.kubernetes.io/gpu: ""
+    # fake-gpu-operator watches this label and advertises nvidia.com/gpu
+    run.ai/simulated-gpu-node-pool: default
+    nvidia.com/gpu.present: "true"
+    # ---- fabric location (consumed by Fabric State Service + schedulers) ----
+    ai-fabric.io/leaf: __LEAF__
+    ai-fabric.io/rack: __RACK__
+    ai-fabric.io/rail: __RAIL__
+    ai-fabric.io/spine-group: __SPINE__
+    topology.kubernetes.io/zone: __RACK__
+spec:
+  taints:
+    - key: kwok.x-k8s.io/node
+      value: fake
+      effect: NoSchedule
+status:
+  allocatable:
+    cpu: "128"
+    memory: 1024Gi
+    pods: "256"
+  capacity:
+    cpu: "128"
+    memory: 1024Gi
+    pods: "256"
+  nodeInfo:
+    architecture: amd64
+    kubeletVersion: fake
+    operatingSystem: linux
+  phase: Running

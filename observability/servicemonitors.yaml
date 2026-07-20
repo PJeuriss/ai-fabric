@@ -1,0 +1,40 @@
+# ServiceMonitors for the custom components. Prometheus (kube-prometheus-stack)
+# discovers these cluster-wide (serviceMonitorSelectorNilUsesHelmValues: false).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: fabric-state-service
+  labels: { release: kps }
+spec:
+  namespaceSelector: { matchNames: ["ai-fabric-system"] }
+  selector:
+    matchLabels: { app: fabric-state-service }
+  endpoints:
+    - port: metrics
+      interval: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mock-vllm
+  labels: { release: kps }
+spec:
+  namespaceSelector: { matchNames: ["llm-d"] }
+  selector:
+    matchLabels: { app: mock-vllm }
+  endpoints:
+    - port: metrics
+      interval: 5s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: llm-d-epp
+  labels: { release: kps }
+spec:
+  namespaceSelector: { matchNames: ["llm-d"] }
+  selector:
+    matchLabels: { app: llm-d-epp }
+  endpoints:
+    - port: metrics
+      interval: 5s

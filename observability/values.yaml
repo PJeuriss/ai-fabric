@@ -1,0 +1,43 @@
+# kube-prometheus-stack values, trimmed for a low-RAM lab.
+# Alertmanager off, short retention, ServiceMonitor discovery cluster-wide.
+alertmanager:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: true
+nodeExporter:
+  enabled: false           # KWOK nodes have no real kubelet/host to scrape
+
+prometheus:
+  prometheusSpec:
+    retention: 2h
+    scrapeInterval: 15s
+    # discover ServiceMonitors in every namespace, not just the release ns
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    resources:
+      requests: { cpu: 200m, memory: 400Mi }
+      limits:   { memory: 1Gi }
+    # scrape the host-side gnmic collector (containerlab fabric telemetry).
+    # __GNMIC_TARGET__ is substituted by scripts/30-observability.sh with the
+    # kind network gateway IP so pods can reach the host's :9273.
+    additionalScrapeConfigs:
+      - job_name: gnmic-fabric
+        static_configs:
+          - targets: ["__GNMIC_TARGET__:9273"]
+        metrics_path: /metrics
+
+grafana:
+  adminPassword: admin
+  defaultDashboardsEnabled: false
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { memory: 256Mi }
+  service:
+    type: NodePort
+    nodePort: 30300
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL

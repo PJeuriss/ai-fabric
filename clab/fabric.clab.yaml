@@ -1,0 +1,49 @@
+name: fabric
+
+topology:
+  nodes:
+    spine1:
+      kind: nokia_srlinux
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: configs/spine1.cli
+      labels:
+        fabric-role: spine
+    spine2:
+      kind: nokia_srlinux
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: configs/spine2.cli
+      labels:
+        fabric-role: spine
+    leaf1:
+      kind: nokia_srlinux
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: configs/leaf1.cli
+      labels:
+        fabric-role: leaf
+    leaf2:
+      kind: nokia_srlinux
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: configs/leaf2.cli
+      labels:
+        fabric-role: leaf
+    leaf3:
+      kind: nokia_srlinux
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: configs/leaf3.cli
+      labels:
+        fabric-role: leaf
+    leaf4:
+      kind: nokia_srlinux
+      image: ghcr.io/nokia/srlinux:24.10.1
+      startup-config: configs/leaf4.cli
+      labels:
+        fabric-role: leaf
+  links:
+    - endpoints: ["leaf1:e1-1", "spine1:e1-1"]
+    - endpoints: ["leaf1:e1-2", "spine2:e1-1"]
+    - endpoints: ["leaf2:e1-1", "spine1:e1-2"]
+    - endpoints: ["leaf2:e1-2", "spine2:e1-2"]
+    - endpoints: ["leaf3:e1-1", "spine1:e1-3"]
+    - endpoints: ["leaf3:e1-2", "spine2:e1-3"]
+    - endpoints: ["leaf4:e1-1", "spine1:e1-4"]
+    - endpoints: ["leaf4:e1-2", "spine2:e1-4"]

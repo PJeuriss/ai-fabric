@@ -1,0 +1,14 @@
+# Headless-ish Service fronting all mock-vLLM pods. The InferencePool selects
+# the same pods directly; this Service is mainly for metrics scraping and a
+# stable name for debugging.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-vllm
+  namespace: llm-d
+  labels: { app: mock-vllm }
+spec:
+  selector: { app: mock-vllm }
+  ports:
+    - { name: http, port: 8000, targetPort: 8000 }
+    - { name: metrics, port: 8001, targetPort: 8000 }

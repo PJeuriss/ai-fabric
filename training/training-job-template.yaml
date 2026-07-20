@@ -1,0 +1,44 @@
+# Gang training job (managed by Kueue). suspend:true hands admission to Kueue,
+# which admits all workers together and, via TAS, packs them network-close.
+# On KWOK nodes the container never actually runs; the pods represent GPU
+# occupancy + fabric load. Placeholders: __NAME__ __WORKERS__
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: __NAME__
+  namespace: training
+  labels:
+    kueue.x-k8s.io/queue-name: gpu-queue
+    app: training
+spec:
+  suspend: true
+  parallelism: __WORKERS__
+  completions: __WORKERS__
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: training
+        ai-fabric.io/training: "true"
+      annotations:
+        # ask Kueue TAS to co-locate this gang within a single leaf if possible
+        kueue.x-k8s.io/podset-preferred-topology: "ai-fabric.io/leaf"
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        run.ai/simulated-gpu-node-pool: default
+      tolerations:
+        - key: kwok.x-k8s.io/node
+          operator: Equal
+          value: fake
+          effect: NoSchedule
+      containers:
+        - name: trainer
+          image: registry.k8s.io/pause:3.10
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+              cpu: "8"
+              memory: 16Gi
+            limits:
+              nvidia.com/gpu: "1"

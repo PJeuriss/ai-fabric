@@ -1,0 +1,107 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: networkfabrics.fabric.ai-fabric.io
+spec:
+  group: fabric.ai-fabric.io
+  scope: Cluster
+  names:
+    kind: NetworkFabric
+    plural: networkfabrics
+    singular: networkfabric
+    shortNames: ["nf"]
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources: { status: {} }
+      additionalPrinterColumns:
+        - { name: Nodes, type: integer, jsonPath: .status.nodes }
+        - { name: Leaves, type: integer, jsonPath: .status.leaves }
+        - { name: MaxLinkUtil, type: number, jsonPath: .status.maxLinkUtil }
+        - { name: ObservedAt, type: string, jsonPath: .status.observedAt }
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                topology: { type: string }
+            status:
+              type: object
+              properties:
+                nodes: { type: integer }
+                leaves: { type: integer }
+                maxLinkUtil: { type: number }
+                observedAt: { type: string }
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: fabriclinks.fabric.ai-fabric.io
+spec:
+  group: fabric.ai-fabric.io
+  scope: Cluster
+  names:
+    kind: FabricLink
+    plural: fabriclinks
+    singular: fabriclink
+    shortNames: ["fl"]
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources: { status: {} }
+      additionalPrinterColumns:
+        - { name: A, type: string, jsonPath: .spec.endpointA }
+        - { name: B, type: string, jsonPath: .spec.endpointB }
+        - { name: Util, type: number, jsonPath: .status.utilization }
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                endpointA: { type: string }
+                endpointB: { type: string }
+                capacityBps: { type: number }
+            status:
+              type: object
+              properties:
+                utilization: { type: number }
+                operState: { type: string }
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: nodefabriclocations.fabric.ai-fabric.io
+spec:
+  group: fabric.ai-fabric.io
+  scope: Cluster
+  names:
+    kind: NodeFabricLocation
+    plural: nodefabriclocations
+    singular: nodefabriclocation
+    shortNames: ["nfl"]
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      additionalPrinterColumns:
+        - { name: Leaf, type: string, jsonPath: .spec.leaf }
+        - { name: Rail, type: string, jsonPath: .spec.rail }
+        - { name: SpineGroup, type: string, jsonPath: .spec.spineGroup }
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                node: { type: string }
+                leaf: { type: string }
+                rack: { type: string }
+                rail: { type: string }
+                spineGroup: { type: string }

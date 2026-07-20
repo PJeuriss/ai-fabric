@@ -1,0 +1,95 @@
+# fabric-load-driver — closes the loop: it reads where training gang pods landed,
+# aggregates per-leaf occupancy, converts it to synthetic egress bytes, and pushes
+# it to the Pushgateway as fabric_if_counters_out_octets{source="clab-fabric-leafN"}.
+# The Fabric State Service then treats busy leaves as congested and the EPP scorer
+# steers inference away from them. Runs every minute as a CronJob.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fabric-load-driver
+  namespace: training
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fabric-load-driver
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fabric-load-driver
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fabric-load-driver
+subjects:
+  - kind: ServiceAccount
+    name: fabric-load-driver
+    namespace: training
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fabric-load-driver-script
+  namespace: training
+data:
+  drive.sh: |
+    #!/bin/sh
+    set -eu
+    PG="${PUSHGATEWAY:-http://pushgateway.monitoring:9091}"
+    BPS_PER_POD="${SYNTH_BPS_PER_POD:-12000000000}"
+
+    kubectl get nodes -l type=kwok \
+      -o jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels.ai-fabric\.io/leaf}{"\n"}{end}' \
+      > /tmp/map
+    kubectl get pods -A -l ai-fabric.io/training=true --field-selector=status.phase=Running \
+      -o jsonpath='{range .items[*]}{.spec.nodeName}{"\n"}{end}' > /tmp/pods
+
+    # per-leaf running-pod counts (0 for idle leaves)
+    awk 'NR==FNR{leaf[$1]=$2; all[$2]=1; next}
+         {c[leaf[$1]]++}
+         END{for(l in all){ if(l!="") print l, (c[l]+0) }}' /tmp/map /tmp/pods > /tmp/counts
+
+    {
+      echo "# TYPE fabric_if_counters_out_octets gauge"
+      while read -r leaf cnt; do
+        src=$(echo "$leaf" | sed 's/leaf-/clab-fabric-leaf/')
+        bps=$(awk -v c="$cnt" -v p="$BPS_PER_POD" 'BEGIN{printf "%d", c*p}')
+        echo "fabric_if_counters_out_octets{source=\"$src\",interface_name=\"synthetic\"} $bps"
+      done < /tmp/counts
+    } > /tmp/body
+
+    echo "pushing synthetic fabric load:"; cat /tmp/body
+    curl -sf --data-binary @/tmp/body "$PG/metrics/job/fabric-load" && echo "ok"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: fabric-load-driver
+  namespace: training
+spec:
+  schedule: "*/1 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: fabric-load-driver
+          nodeSelector: { ai-fabric.io/real: "true" }
+          restartPolicy: Never
+          containers:
+            - name: driver
+              image: alpine/k8s:1.31.0
+              command: ["/bin/sh", "/scripts/drive.sh"]
+              env:
+                - name: SYNTH_BPS_PER_POD
+                  value: "12000000000"
+              volumeMounts:
+                - { name: script, mountPath: /scripts }
+          volumes:
+            - name: script
+              configMap: { name: fabric-load-driver-script }

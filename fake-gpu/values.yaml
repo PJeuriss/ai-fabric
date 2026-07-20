@@ -1,0 +1,19 @@
+# run.ai fake-gpu-operator Helm values.
+# Advertises nvidia.com/gpu on nodes labeled run.ai/simulated-gpu-node-pool
+# without any real hardware or NVML. We keep the default "fake" backend since
+# we only need the Kubernetes API-level resource (schedulers/quotas), not
+# nvidia-smi output inside pods.
+topology:
+  nodePools:
+    default:
+      gpuCount: 8
+      gpuProduct: NVIDIA-H100-80GB-HBM3
+      gpuMemory: 81920
+
+# Tolerate the KWOK taint so operator components / probes ignore fake nodes,
+# and only patch nodes carrying the simulated-gpu label.
+migStrategy: none
+
+# Keep the operator itself on real kind nodes (not the KWOK fleet).
+nodeSelector:
+  ai-fabric.io/real: "true"

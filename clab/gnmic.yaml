@@ -1,0 +1,41 @@
+    # gnmic collector: subscribes to interface + BGP telemetry from every NOS
+    # node and exposes it as a Prometheus endpoint on :9273/metrics.
+    username: admin
+    password: NokiaSrl1!
+    skip-verify: true
+    encoding: json_ietf
+
+    targets:
+        clab-fabric-spine1:57400:
+clab-fabric-spine2:57400:
+clab-fabric-leaf1:57400:
+clab-fabric-leaf2:57400:
+clab-fabric-leaf3:57400:
+clab-fabric-leaf4:57400:
+
+    subscriptions:
+      if-counters:
+        paths:
+          - /interface[name=*]/statistics/in-octets
+          - /interface[name=*]/statistics/out-octets
+          - /interface[name=*]/statistics/in-discarded-packets
+          - /interface[name=*]/statistics/out-discarded-packets
+          - /interface[name=*]/oper-state
+        stream-mode: sample
+        sample-interval: 5s
+      bgp:
+        paths:
+          - /network-instance[name=default]/protocols/bgp/neighbor[peer-address=*]/session-state
+        stream-mode: sample
+        sample-interval: 10s
+
+    outputs:
+      prom:
+        type: prometheus
+        listen: ":9273"
+        path: /metrics
+        metric-prefix: fabric
+        append-subscription-name: true
+
+    api-server:
+      address: ":7890"

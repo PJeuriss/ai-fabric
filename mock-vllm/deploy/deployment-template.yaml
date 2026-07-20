@@ -1,0 +1,51 @@
+# Per-endpoint Deployment template. The generator (scripts/51-mock-vllm.sh)
+# stamps one of these per simulated GPU node so each serving pod carries a
+# distinct fabric location. Physical placement is on real kind nodes; the
+# fabric identity is entirely label/env-driven.
+# Placeholders: __IDX__ __FABRIC_NODE__ __IMAGE__ __INGRESS__
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-vllm-__IDX__
+  namespace: llm-d
+  labels:
+    app: mock-vllm
+    ai-fabric.io/fabric-node: __FABRIC_NODE__
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-vllm
+      ai-fabric.io/fabric-node: __FABRIC_NODE__
+  template:
+    metadata:
+      labels:
+        app: mock-vllm
+        ai-fabric.io/fabric-node: __FABRIC_NODE__
+    spec:
+      # serving pods run on real kind nodes (KWOK nodes can't run containers)
+      nodeSelector: { ai-fabric.io/real: "true" }
+      containers:
+        - name: mock-vllm
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8000 }
+          env:
+            - name: FABRIC_NODE
+              value: "__FABRIC_NODE__"
+            - name: INGRESS_NODE
+              value: "__INGRESS__"
+            - name: FSS_URL
+              value: "http://fabric-state-service.ai-fabric-system:8080"
+            - name: MODEL_NAME
+              value: "meta-llama/Llama-3.1-8B-Instruct"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef: { fieldPath: metadata.name }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 2
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }

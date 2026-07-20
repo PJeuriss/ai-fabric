@@ -1,0 +1,24 @@
+# Baseline EndpointPickerConfig (Phase D): stock llm-d scorers only.
+# Mounted into the EPP as /config/epp.yaml. Phase E swaps this for the
+# fabric-aware config that adds the network scorer.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: epp-config
+  namespace: llm-d
+data:
+  epp.yaml: |
+    apiVersion: inference.networking.x-k8s.io/v1alpha1
+    kind: EndpointPickerConfig
+    plugins:
+      - type: queue-scorer
+      - type: kv-cache-utilization-scorer
+      - type: max-score-picker
+    schedulingProfiles:
+      - name: default
+        plugins:
+          - pluginRef: queue-scorer
+            weight: 1.0
+          - pluginRef: kv-cache-utilization-scorer
+            weight: 1.0
+          - pluginRef: max-score-picker

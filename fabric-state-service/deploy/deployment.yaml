@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fabric-state-service
+  namespace: ai-fabric-system
+  labels: { app: fabric-state-service }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: fabric-state-service }
+  template:
+    metadata:
+      labels: { app: fabric-state-service }
+    spec:
+      serviceAccountName: fabric-state-service
+      # run on a real kind node, never a KWOK fake node
+      nodeSelector: { ai-fabric.io/real: "true" }
+      containers:
+        - name: fss
+          image: ai-fabric/fabric-state-service:dev
+          imagePullPolicy: IfNotPresent
+          args: ["-v=2"]
+          env:
+            - name: LISTEN
+              value: ":8080"
+            - name: PROM_URL
+              value: "http://kps-kube-prometheus-stack-prometheus.monitoring:9090"
+            - name: SCRAPE_INTERVAL
+              value: "10s"
+            - name: LINK_CAPACITY_BPS
+              value: "100000000000"
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: metrics, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8080 }
+            initialDelaySeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fabric-state-service
+  namespace: ai-fabric-system
+  labels: { app: fabric-state-service }
+spec:
+  selector: { app: fabric-state-service }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+    - { name: metrics, port: 8081, targetPort: 8080 }

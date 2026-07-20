@@ -1,0 +1,98 @@
+# llm-d Endpoint Picker (EPP) — the routing "brain". Envoy calls it via ext-proc
+# for every inference request; it scores the InferencePool endpoints and returns
+# the chosen pod. Image is set by scripts (EPP_BASE_IMAGE in Phase D, the
+# fabric-scorer image in Phase E).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: llm-d-epp
+  namespace: llm-d
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: llm-d-epp
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["inference.networking.x-k8s.io"]
+    resources: ["inferencepools", "inferencemodels", "inferenceobjectives"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: llm-d-epp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: llm-d-epp
+subjects:
+  - kind: ServiceAccount
+    name: llm-d-epp
+    namespace: llm-d
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-d-epp
+  namespace: llm-d
+  labels: { app: llm-d-epp }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: llm-d-epp }
+  template:
+    metadata:
+      labels: { app: llm-d-epp }
+    spec:
+      serviceAccountName: llm-d-epp
+      nodeSelector: { ai-fabric.io/real: "true" }
+      containers:
+        - name: epp
+          image: registry.k8s.io/gateway-api-inference-extension/epp:v0.3.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --pool-name=llm-d-pool
+            - --pool-namespace=llm-d
+            - --config-file=/config/epp.yaml
+            - --grpc-port=9002
+            - --grpc-health-port=9003
+            - --metrics-port=9090
+            - --v=2
+          ports:
+            - { name: grpc, containerPort: 9002 }
+            - { name: grpc-health, containerPort: 9003 }
+            - { name: metrics, containerPort: 9090 }
+          # env consumed by our fabric scorer (Phase E); harmless for baseline
+          env:
+            - name: FSS_URL
+              value: "http://fabric-state-service.ai-fabric-system:8080"
+            - name: INGRESS_NODE
+              value: "gpu-0001"
+            - name: FABRIC_NODE_LABEL
+              value: "ai-fabric.io/fabric-node"
+          volumeMounts:
+            - { name: config, mountPath: /config }
+          livenessProbe:
+            grpc: { port: 9003 }
+            initialDelaySeconds: 5
+      volumes:
+        - name: config
+          configMap: { name: epp-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-d-epp
+  namespace: llm-d
+  labels: { app: llm-d-epp }
+spec:
+  selector: { app: llm-d-epp }
+  ports:
+    - { name: grpc, port: 9002, targetPort: 9002, appProtocol: http2 }
+    - { name: metrics, port: 9090, targetPort: 9090 }

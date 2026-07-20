@@ -1,0 +1,31 @@
+# local env
+.env
+
+# build artifacts
+bin/
+dist/
+*.exe
+*.test
+*.out
+# compiled go binaries accidentally emitted into module dirs
+/fabric-state-service/fabric-state-service
+/mock-vllm/mock-vllm
+/epp-scorer/epp
+
+# go
+vendor/
+
+# containerlab runtime
+clab/clab-*/
+clab/.clab.*
+*.tar.gz
+
+# k8s / tmp
+kwok/generated/
+*.tmp
+*.log
+
+# editor
+.DS_Store
+.idea/
+.vscode/

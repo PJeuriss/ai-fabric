@@ -16,11 +16,12 @@ network-aware scheduling. It combines:
 - **Kueue/Volcano + JobSet** — simulated distributed training placement
 
 > [!IMPORTANT]
-> **Everything runs on the `tcow` Ubuntu bare-metal node.** Connect Cursor to `tcow`
-> via Remote-SSH, open this folder there, and run the commands below **on `tcow`**.
-> containerlab / SR Linux require Linux (amd64) and will not run on macOS.
+> **Everything runs on a Linux (amd64) host.** Connect to your host over SSH
+> (e.g. `ssh user@your-host`, or via Cursor Remote-SSH), open this folder there,
+> and run the commands below **on that host**. containerlab / SR Linux require
+> Linux (amd64) and will not run on macOS.
 
-## Quick start (on tcow)
+## Quick start (on the host)
 
 ```bash
 # 0. one-time host prep (Docker, Go, kubectl, helm, kind, kwok, containerlab, gnmic)
